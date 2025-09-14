@@ -1,10 +1,26 @@
-import mongoose, { Schema, models } from "mongoose";
+import mongoose, { Schema, Document } from "mongoose";
 
-const userSchema = new Schema({
-  name: { type: String },
-  email: { type: String, unique: true, required: true },
-  password: { type: String, required: true }, // stored hashed
-  image: { type: String },
-});
+export interface IUser extends Document {
+  name: string;
+  email: string;
+  image?: string;
+  password?: string; // optional for OAuth
+}
 
-export default models.User || mongoose.model("User", userSchema);
+const UserSchema: Schema<IUser> = new Schema(
+  {
+    name: { type: String, required: true },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      match: [/^\S+@\S+\.\S+$/, "Please enter a valid email"],
+    },
+    image: { type: String },
+    password: { type: String, minlength: 6, required: false },
+  },
+  { timestamps: true }
+);
+
+// Avoid recompilation error in Next.js
+export default mongoose.models.User || mongoose.model<IUser>("User", UserSchema);
