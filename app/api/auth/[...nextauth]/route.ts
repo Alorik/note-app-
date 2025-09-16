@@ -2,7 +2,7 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
-import bcrypt from "bcrypt";
+import bcrypt from "bcrypt"; // ✅ use bcryptjs (not bcrypt) for compatibility
 import { connectDB } from "@/lib/mongodb";
 import User from "@/models/User";
 
@@ -12,9 +12,14 @@ export const authOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      authorization: {
+        params: {
+          prompt: "select_account", // 👈 forces Google to ask every time
+        },
+      },
     }),
 
-    // ✅ Email + Password
+    // ✅ Email + Password (Credentials)
     CredentialsProvider({
       name: "Credentials",
       credentials: {
@@ -24,17 +29,21 @@ export const authOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials.password) return null;
 
+        // 1. Connect DB
         await connectDB();
 
+        // 2. Find user
         const user = await User.findOne({ email: credentials.email });
         if (!user || !user.password) return null;
 
+        // 3. Compare password
         const isValid = await bcrypt.compare(
           credentials.password,
           user.password
         );
         if (!isValid) return null;
 
+        // 4. Return minimal user object for session
         return { id: user._id.toString(), email: user.email, name: user.name };
       },
     }),
@@ -43,15 +52,16 @@ export const authOptions = {
   secret: process.env.NEXTAUTH_SECRET,
 
   callbacks: {
-    async session({ session, token }) {
-      // Add user ID from token
+    async session({ session, token }: { session: any; token: any }) {
+      // Attach user ID to session
       if (token.sub) {
         (session.user as any).id = token.sub;
       }
       return session;
     },
-    async signIn({ user, account }) {
-      // For Google login → create user if not already in DB
+
+    async signIn({ user, account }: { user: any; account: any }) {
+      // Google login → ensure user exists in DB
       if (account?.provider === "google") {
         await connectDB();
         const existingUser = await User.findOne({ email: user.email });
@@ -66,6 +76,10 @@ export const authOptions = {
       }
       return true;
     },
+  },
+
+  session: {
+    strategy: "jwt" as const, // ✅ keep JWT sessions for stateless auth
   },
 };
 
