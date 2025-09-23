@@ -2,12 +2,14 @@ import mongoose, { Schema, Document, models } from "mongoose";
 
 export interface INote extends Document {
   userId: mongoose.Types.ObjectId;
+  title: string;
   content: string;
   createdAt: Date;
 }
 
 const noteSchema: Schema<INote> = new Schema({
-  userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+  title: { type: String, required: true, maxlength: 100 },
+  userId: { type: Schema.Types.ObjectId, required: true, ref: "User" },
   content: { type: String, required: true, maxlength: 200 },
   createdAt: { type: Date, default: Date.now },
 });

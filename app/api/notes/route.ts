@@ -1,19 +1,20 @@
 // app/api/notes/route.ts
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+import { getServerSession } from "next-auth/next";
+import type { Session } from "next-auth";
 import { authOptions } from "../auth/[...nextauth]/route";
 import { connectDB } from "@/lib/mongodb";
 import Note from "@/models/Note";
 import { noteSchema } from "@/lib/validations";
+import mongoose from "mongoose";
 
 export async function GET() {
-  const session = await getServerSession(authOptions as any);
+  const session: Session | null = await getServerSession(authOptions);
   if (!session)
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
   await connectDB();
-  // Fix: session may be typed as {}, so use optional chaining and fallback
-  const userId = (session as any)?.user?.id;
+  const userId = session?.user?.id as string | undefined;
   if (!userId) {
     return NextResponse.json(
       { error: "User ID not found in session" },
@@ -27,7 +28,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions as any);
+  const session: Session | null = await getServerSession(authOptions);
   if (!session)
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
@@ -41,9 +42,18 @@ export async function POST(req: Request) {
   }
 
   await connectDB();
+  const userId = (session as any).user?.id as string | undefined;
+  if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+    return NextResponse.json(
+      { error: "Invalid or missing user ID" },
+      { status: 400 }
+    );
+  }
+  
   const note = await Note.create({
-    userId: (session as any).user.id,
+    userId: new mongoose.Types.ObjectId(userId),
     content: parsed.data.content,
+    title: parsed.data.title,
   });
   return NextResponse.json(note);
 }

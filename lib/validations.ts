@@ -19,4 +19,8 @@ export const noteSchema = z.object({
     .string()
     .min(2, "Minimum two characters are required")
     .max(200, "Maximum 200 characters are allowed"),
+  title: z
+    .string()
+    .min(2, "Minimum two characters are required")
+    .max(100, "Maximum 200 characters are allowed"),
 });

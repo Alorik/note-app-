@@ -2,14 +2,28 @@
 "use client";
 
 import NoteCard from "./components/NotesCard";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function NotesPage() {
-  // temporary dummy notes
-  const [notes, setNotes] = useState([
-    { _id: "1", title: "First Note", content: "This is my first note." },
-    { _id: "2", title: "Second Note", content: "Another important note." },
-  ]);
+  const [notes, setNotes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchNotes = async () => {
+      try {
+        const res = await fetch("/api/notes");
+        if (res.ok) {
+          const data = res.json();
+          setNotes(data);
+        }
+      } catch (err) {
+        console.log(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchNotes();
+  }, []);
 
   // handle delete
   const handleDelete = (id: string) => {

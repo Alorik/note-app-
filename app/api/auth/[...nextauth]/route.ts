@@ -52,6 +52,22 @@ export const authOptions = {
   secret: process.env.NEXTAUTH_SECRET,
 
   callbacks: {
+    async jwt({ token, user }: { token: any; user: any }) {
+      // For credentials login, user.id is already set
+      if (user) {
+        token.sub = user.id;
+      }
+      // For Google OAuth, ensure we have the MongoDB _id
+      else if (token.email && !token.sub) {
+        await connectDB();
+        const dbUser = await User.findOne({ email: token.email });
+        if (dbUser) {
+          token.sub = dbUser._id.toString();
+        }
+      }
+      return token;
+    },
+
     async session({ session, token }: { session: any; token: any }) {
       // Attach user ID to session
       if (token.sub) {
@@ -76,10 +92,6 @@ export const authOptions = {
       }
       return true;
     },
-  },
-
-  session: {
-    strategy: "jwt" as const, // ✅ keep JWT sessions for stateless auth
   },
 };
 
